@@ -1,0 +1,75 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game {
+  display: block;
+  background: #05060b;
+  touch-action: none;    /* スマホでのスクロール・ズームを無効化 */
+  user-select: none;
+  -webkit-user-select: none;
+  /* cursor は操作モードに応じて input.js が設定 */
+}
+
+/* ---- 設定ボタンとパネル ---- */
+#settingsButton {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #2a3366;
+  border-radius: 8px;
+  background: rgba(13, 16, 32, 0.85);
+  color: #9aa3c7;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+#settingsButton:hover { color: #fff; border-color: #6fb6ff; }
+
+#settings {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 18px 20px;
+  background: #0d1020;
+  border: 1px solid #2a3366;
+  border-radius: 12px;
+  color: #e6e9f5;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+#settings[hidden] { display: none; }
+#settings h2 { margin: 0 0 12px; font-size: 18px; }
+#settings fieldset { border: 1px solid #2a3366; border-radius: 8px; margin: 0 0 12px; padding: 8px 12px 10px; }
+#settings legend { color: #8890b8; font-size: 12px; padding: 0 4px; }
+#settings label { display: block; margin: 6px 0; font-size: 14px; cursor: pointer; }
+#settings label small { display: block; margin-left: 22px; color: #8890b8; font-size: 11px; }
+#settings .row { display: flex; align-items: center; gap: 10px; }
+#settings input[type="range"] { flex: 1; }
+#sensitivityValue { width: 2.5em; text-align: right; font-weight: bold; }
+#settingsClose {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: #1f5fd6;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+#settingsClose:hover { background: #3a78ee; }
+#settings .note { margin: 8px 0 0; color: #8890b8; font-size: 11px; text-align: center; }

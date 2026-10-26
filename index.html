@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>BALLSTORM -BBOD-</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <button id="settingsButton" type="button" title="設定（O キー）" aria-label="設定">⚙</button>
+  <div id="settings" hidden>
+    <h2>設定</h2>
+    <fieldset>
+      <legend>操作モード</legend>
+      <label><input type="radio" name="mode" value="lock"> マウスロック（推奨）<small>カーソルが消え、画面外でもパドルを動かせる。Esc で解除</small></label>
+      <label><input type="radio" name="mode" value="cursor"> カーソル追従<small>カーソルの位置にパドルが付いてくる従来方式</small></label>
+    </fieldset>
+    <fieldset>
+      <legend>マウス感度（マウスロック時）</legend>
+      <div class="row">
+        <input id="sensitivity" type="range" min="0.3" max="3" step="0.1">
+        <span id="sensitivityValue">1.0</span>
+      </div>
+    </fieldset>
+    <button id="settingsClose" type="button">閉じる</button>
+    <p class="note">閉じた後、ゲーム画面をクリックすると再開します</p>
+  </div>
+
+  <!-- モジュールではなく通常のscriptで読み込む（index.htmlをダブルクリックしても動くように） -->
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
