@@ -140,6 +140,33 @@ const CONFIG = {
   MILLIONAIRE_SPARKS: 160,         // 炸裂時の光の粒の数
   MILLIONAIRE_SPARK_MAX: 400,      // 花火の粒の同時表示上限（打ち上げの火花を含む）
 
+  // ---- スコア到達イベント（Ver.1.1、演出のみ。ボール・ブロック・得点・速度は一切変えない） ----
+  // 各イベントは1プレイ1回。同じフレームで複数の閾値を超えた時は、MILLIONAIRE の後に順番に再生する。
+  //   score: 発動する点数 / title, sub: 表示文言 / sparkColors: 花火の粒の色 / textColors: 称号のグラデーション（上→下）
+  //   stroke: 称号の縁取り / flash: 画面フラッシュの色(r,g,b) / shells: 花火の数 / sparks: 花火1発の粒の数
+  //   waves: 衝撃波の輪の数 / time: 称号の表示時間（秒） / sound: 効果音 / rainbow: 称号を虹色に流す
+  SCORE_EVENTS: [
+    { score: 2000000, title: 'DOUBLE MILLIONAIRE!', sub: '2,000,000 POINTS',
+      sparkColors: ['#ffffff', '#d8f0ff', '#9fd8ff', '#5ab4ff'], textColors: ['#ffffff', '#c4e8ff', '#4aa8ff'],
+      stroke: 'rgba(0, 30, 80, 0.85)', flash: '150, 205, 255', shells: 1, sparks: 110, waves: 2, time: 2.0, sound: 'fanfare1' },
+    { score: 5000000, title: 'MEGA MILLIONAIRE!', sub: '5,000,000 POINTS',
+      sparkColors: ['#ffd700', '#ffe98a', '#fff4c2', '#ffb347', '#ff9a1f'], textColors: ['#fff6c8', '#ffd700', '#e08a00'],
+      stroke: 'rgba(80, 40, 0, 0.85)', flash: '255, 215, 90', shells: 3, sparks: 120, waves: 1, time: 2.4, sound: 'fanfare2' },
+    { score: 10000000, title: 'OVERDRIVE LEGEND!', sub: '10,000,000 POINTS',
+      sparkColors: ['#ff4d6d', '#ffb347', '#ffe14a', '#5dff8a', '#3ef0ff', '#6f8bff', '#d27aff'], textColors: ['#ffffff', '#ffe14a', '#ff4dd2'],
+      stroke: 'rgba(30, 0, 50, 0.9)', flash: '255, 255, 255', shells: 5, sparks: 120, waves: 3, time: 3.0, sound: 'fanfare3', rainbow: true },
+  ],
+  SCORE_EVENT_SPARK_MAX: 700,       // 新イベントの花火の粒の同時表示上限（MILLIONAIRE の粒と合わせた数）
+  SCORE_EVENT_SHELL_RISE: 0.7,      // 花火が上がる時間（秒）
+  SCORE_EVENT_SHELL_INTERVAL: 0.28, // 複数の花火を打つ間隔（秒）
+  SCORE_EVENT_WAVE_TIME: 0.9,       // 衝撃波が広がる時間（秒）
+  SCORE_EVENT_TITLE_Y_RATIO: 0.42,  // 称号の表示位置（画面高さに対する割合）
+  SCORE_EVENT_TITLE_SIZE: 38,       // 称号の文字の大きさ（画面幅に収まらない時は自動で縮める）
+  SCORE_EVENT_GAP: 0.3,             // 続けて発動した時の、前の称号が消えてから次までの間（秒）
+
+  // ---- ストック超過ボーナス（Ver.1.1） ----
+  STOCK_OVERFLOW_BONUS: 5000,       // ストック最大の時に S を取ると、ストックの代わりにこの点数（時間倍率は掛けない）
+
   // ---- 演出 ----
   PARTICLES_PER_BLOCK: 6,
   PARTICLE_MAX: 2500,

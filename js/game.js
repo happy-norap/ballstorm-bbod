@@ -68,6 +68,12 @@ class Game {
     // 特別イベント「MILLIONAIRE」：done は1プレイ1回の発動済みフラグ（リスタートで戻る）
     this.millionaire = { done: false, phase: 'idle', t: 0, x: 0, y: 0, burstY: 0, msg: 0, flash: 0 };
     this.sparks = [];              // 花火の光の粒（打ち上げの火花・炸裂の粒）
+    // スコア到達イベント（200万 / 500万 / 1,000万。演出のみ）：done は1プレイ1回の発動済みフラグ
+    this.scoreEvents = { done: CONFIG.SCORE_EVENTS.map(() => false), clock: 0, busyUntil: 0 };
+    this.shells = [];              // 打ち上げ中・待機中の花火 { delay, x, y, y0, ty, t, colors, n }
+    this.waves = [];               // 衝撃波の輪 { delay, x, y, t, color }
+    this.titles = [];              // 称号表示 { ev, t }（t < 0 の間は待機）
+    this.eventFlash = { a: 0, color: '255,255,255' };
     this.paddle = { x: this.mouseX, vx: 0, prevX: this.mouseX };
     this.blades = [];
     this.shake = 0;
@@ -434,7 +440,9 @@ class Game {
 
     // 100万点イベント（スコアの加算はすべてこの前に終わっているので、一度に大きく超えた場合もここで拾える）
     if (!this.millionaire.done && this.score >= C.MILLIONAIRE_SCORE) this.startMillionaire();
+    this.checkScoreEvents();       // 200万点以上のイベント（演出のみ）。判定場所は MILLIONAIRE と同じ
     this.updateMillionaire(dt);
+    this.updateScoreEvents(dt);
 
     if (this.balls.length > this.maxBalls) this.maxBalls = this.balls.length;
     // 花火の上昇中（約0.9秒）は、炸裂で32球が届くのでゲームオーバー判定を待つ
@@ -837,8 +845,15 @@ class Game {
     this.audio.sfx('item');
     const color = ITEM_COLORS[type];
     if (type === ITEM.SPLIT) {
-      if (this.splitStock < C.SPLIT_STOCK_MAX) this.splitStock++;
-      this.popup(x, y, `分裂ストック ${this.splitStock}/${C.SPLIT_STOCK_MAX}`, color, 16);
+      if (this.splitStock < C.SPLIT_STOCK_MAX) {
+        this.splitStock++;
+        this.popup(x, y, `分裂ストック ${this.splitStock}/${C.SPLIT_STOCK_MAX}`, color, 16);
+      } else {
+        // ストック超過ボーナス：ストックは増やさず固定点（時間倍率なし）。到達イベントは update の共通判定で拾う
+        this.score += C.STOCK_OVERFLOW_BONUS;
+        this.popup(x, y, `STOCK MAX! +${C.STOCK_OVERFLOW_BONUS.toLocaleString('en-US')}`, '#ffd24a', 18);
+        this.audio.sfx('stockBonus');
+      }
     } else if (type === ITEM.ROTOR) {
       this.rotorTime = C.ROTOR_DURATION;   // 効果中の再取得は残り時間を初期値に戻す
       this.popup(x, y, '回転パドル！', color, 16);
@@ -975,6 +990,103 @@ class Game {
     for (let k = 0; k < down; k++) this.addBall(x, y, minA + ((k + 0.5) / down) * span, sp);           // 下向き
     for (let k = 0; k < up; k++) this.addBall(x, y, Math.PI + minA + ((k + 0.5) / up) * span, sp);   // 上向き
     this.shake = Math.max(this.shake, 8);
+    this.audio.sfx('fwBurst');
+  }
+
+  // ---------- スコア到達イベント（200万 / 500万 / 1,000万点）：演出のみ ----------
+  // 毎フレーム、すべての得点加算（ブロック・アイテム・ストック超過ボーナス）の後に呼ぶので、取りこぼしが無い。
+  // 一度に複数の閾値を超えた時は、前の演出（MILLIONAIRE を含む）が終わってから順番に再生する。
+  checkScoreEvents() {
+    const C = CONFIG;
+    const E = this.scoreEvents;
+    for (let i = 0; i < C.SCORE_EVENTS.length; i++) {
+      const ev = C.SCORE_EVENTS[i];
+      if (E.done[i] || this.score < ev.score) continue;
+      E.done[i] = true;
+      // MILLIONAIRE の演出中（上昇〜メッセージ）は、その後に回す
+      const M = this.millionaire;
+      let busy = E.busyUntil;
+      if (M.phase === 'rise') busy = Math.max(busy, E.clock + (C.MILLIONAIRE_RISE_TIME - M.t) + C.MILLIONAIRE_MESSAGE_TIME);
+      else if (M.msg > 0) busy = Math.max(busy, E.clock + M.msg);
+      const delay = Math.max(0, busy - E.clock) + (busy > E.clock ? C.SCORE_EVENT_GAP : 0);
+      E.busyUntil = E.clock + delay + ev.time;
+      this.scheduleScoreEvent(ev, delay);
+    }
+  }
+
+  scheduleScoreEvent(ev, delay) {
+    const C = CONFIG;
+    // 称号は花火が上がりきった頃に出す
+    this.titles.push({ ev, t: -(delay + C.SCORE_EVENT_SHELL_RISE * 0.6), sounded: false, delay });
+    for (let k = 0; k < ev.shells; k++) {
+      const x = ev.shells === 1 ? this.W / 2 : this.W * (0.18 + 0.64 * (k / (ev.shells - 1))) + rand(-20, 20);
+      const ty = this.H * rand(0.16, 0.36);
+      this.shells.push({ delay: delay + k * C.SCORE_EVENT_SHELL_INTERVAL, x, y: this.H + 10, y0: this.H + 10, ty, t: 0,
+        colors: ev.sparkColors, n: ev.sparks, glow: ev.sparkColors[0] });
+    }
+    const cy = this.H * C.SCORE_EVENT_TITLE_Y_RATIO;
+    for (let k = 0; k < ev.waves; k++) {
+      this.waves.push({ delay: delay + C.SCORE_EVENT_SHELL_RISE * 0.6 + k * 0.16, x: this.W / 2, y: cy, t: 0,
+        color: ev.sparkColors[(k + 1) % ev.sparkColors.length] });
+    }
+  }
+
+  updateScoreEvents(dt) {
+    const C = CONFIG;
+    const E = this.scoreEvents;
+    E.clock += dt;
+    if (this.eventFlash.a > 0) this.eventFlash.a = Math.max(0, this.eventFlash.a - dt * 2.5);
+    // 称号：待機 → 表示（開始時に効果音とフラッシュ）→ 終了で削除
+    let w = 0;
+    for (let i = 0; i < this.titles.length; i++) {
+      const ti = this.titles[i];
+      ti.t += dt;
+      if (ti.t >= 0 && !ti.sounded) {
+        ti.sounded = true;
+        this.audio.sfx(ti.ev.sound);
+        this.eventFlash.a = 1;
+        this.eventFlash.color = ti.ev.flash;
+      }
+      if (ti.t < ti.ev.time) this.titles[w++] = ti;
+    }
+    this.titles.length = w;
+    // 花火：上昇 → 炸裂で粒（粒の動きと削除は updateMillionaire の共通処理）
+    w = 0;
+    for (let i = 0; i < this.shells.length; i++) {
+      const s = this.shells[i];
+      if (s.delay > 0) { s.delay -= dt; this.shells[w++] = s; continue; }
+      if (!s.launched) { s.launched = true; this.audio.sfx('fwLaunch'); }
+      s.t += dt;
+      const p = Math.min(1, s.t / C.SCORE_EVENT_SHELL_RISE);
+      s.y = s.y0 + (s.ty - s.y0) * (1 - (1 - p) * (1 - p));
+      if (this.sparks.length < C.SCORE_EVENT_SPARK_MAX) {
+        this.sparks.push({ x: s.x + rand(-2, 2), y: s.y + 6, vx: rand(-25, 25), vy: rand(40, 110), life: 0.4, max: 0.4, color: s.glow, size: 2 });
+      }
+      if (p >= 1) { this.burstShell(s); continue; }
+      this.shells[w++] = s;
+    }
+    this.shells.length = w;
+    // 衝撃波
+    w = 0;
+    for (let i = 0; i < this.waves.length; i++) {
+      const v = this.waves[i];
+      if (v.delay > 0) v.delay -= dt; else v.t += dt;
+      if (v.t < C.SCORE_EVENT_WAVE_TIME) this.waves[w++] = v;
+    }
+    this.waves.length = w;
+  }
+
+  burstShell(s) {
+    const C = CONFIG;
+    const n = s.n;
+    for (let i = 0; i < n && this.sparks.length < C.SCORE_EVENT_SPARK_MAX; i++) {
+      const a = (i / n) * Math.PI * 2 * 3 + rand(-0.05, 0.05);
+      const ring = i % 3;
+      const sp = (ring === 0 ? 290 : ring === 1 ? 200 : 120) * rand(0.9, 1.1);
+      const life = rand(1.0, 1.5);
+      this.sparks.push({ x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life,
+        color: s.colors[i % s.colors.length], size: ring === 0 ? 3 : 2 });
+    }
     this.audio.sfx('fwBurst');
   }
 

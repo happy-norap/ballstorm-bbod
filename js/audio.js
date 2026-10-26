@@ -55,8 +55,23 @@ class AudioManager {
       case 'fwLaunch': this.tone('sine', 380, 0.85, 0.35, 1500); this.noise(0.85, 0.12, 2500); break;
       case 'fwBurst': this.noise(0.9, 0.55, 1800); this.tone('sine', 140, 0.6, 0.7, 45); this.tone('triangle', 1200, 0.5, 0.18, 600); break;
       case 'land': this.tone('triangle', 150, 0.06, 0.7, 90); break;
+      // スコア到達イベント（Ver.1.1）：段階が上がるほど音を重ねて華やかに
+      case 'fanfare1': this.arp([784, 988, 1175, 1568], 0.09, 'triangle', 0.55); break;
+      case 'fanfare2': this.arp([523, 659, 784, 1047, 1319], 0.08, 'triangle', 0.6); this.arp([1047, 1319, 1568, 2093], 0.08, 'sine', 0.25, 0.1); break;
+      case 'fanfare3':
+        this.arp([392, 523, 659, 784, 1047, 1319, 1568], 0.07, 'triangle', 0.6);
+        this.arp([784, 1047, 1319, 1568, 2093], 0.07, 'sine', 0.25, 0.12);
+        for (const f of [523, 659, 784, 1047]) this.tone('triangle', f, 1.1, 0.35, null, 0.55); // 最後に和音
+        break;
+      // ストック超過ボーナス：コインのような短い2音
+      case 'stockBonus': this.tone('square', 988, 0.07, 0.4); this.tone('square', 1319, 0.22, 0.4, null, 0.07); break;
       case 'gameover': this.tone('sawtooth', 300, 0.9, 0.8, 60); break;
     }
+  }
+
+  // 分散和音（notes を step 秒ずつずらして鳴らす）
+  arp(notes, step, type, vol, offset) {
+    notes.forEach((f, i) => this.tone(type, f, 0.35, vol, null, (offset || 0) + i * step));
   }
 
   // ホワイトノイズを低域フィルタに通した破裂音
@@ -83,9 +98,10 @@ class AudioManager {
     src.stop(t + dur + 0.02);
   }
 
-  tone(type, freq, dur, vol, freqEnd) {
+  // delay：鳴り始めを遅らせる秒数（ファンファーレの分散和音用。省略時は即時）
+  tone(type, freq, dur, vol, freqEnd, delay) {
     const ctx = this.ctx;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + (delay || 0);
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;

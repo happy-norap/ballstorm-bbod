@@ -73,3 +73,64 @@ body {
 }
 #settingsClose:hover { background: #3a78ee; }
 #settings .note { margin: 8px 0 0; color: #8890b8; font-size: 11px; text-align: center; }
+
+/* ---- スマホ（タッチ操作）用 ---- */
+/* 操作バーは PC では出さない。タッチ操作の時だけ body.touch-ui が付く（js/input.js） */
+#touchBar { display: none; }
+
+body.touch-ui {
+  flex-direction: column;
+  box-sizing: border-box;
+  /* ノッチ・ホームインジケーターを避ける */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+body.touch-ui #settingsButton { display: none; } /* 設定はマウス用（モード・感度）。キーボードがあれば O で開ける */
+
+body.touch-ui #touchBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: 76px;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  touch-action: none;
+}
+.tbtn {
+  flex: none;
+  height: 56px;
+  min-width: 60px;
+  padding: 0 12px;
+  border: 1px solid #2a3366;
+  border-radius: 12px;
+  background: rgba(13, 16, 32, 0.92);
+  color: #c3c9e6;
+  font: bold 18px "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+.tbtn:active { background: #1c2448; }
+#btnBgm { font-size: 15px; }
+#btnBgm.off { color: #5a6290; }
+#btnSplit {
+  margin-left: auto;          /* 右下に寄せる */
+  min-width: 150px;
+  height: 60px;
+  border: 2px solid #ffe14a;
+  background: rgba(70, 58, 8, 0.95);
+  color: #ffe14a;
+  font-size: 20px;
+  letter-spacing: 0.5px;
+}
+#btnSplit:active { background: #8a7410; }
+.tbtn.disabled { opacity: 0.35; }
+#btnSplit.disabled { border-color: #6b6440; background: rgba(30, 28, 18, 0.9); color: #8a845e; opacity: 0.6; }

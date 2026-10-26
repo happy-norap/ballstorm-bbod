@@ -11,8 +11,24 @@
   window.game = game;   // 開発・テスト用
   window.input = input; // 開発・テスト用
 
-  renderer.resize();
-  window.addEventListener('resize', () => renderer.resize());
+  // 画面サイズに合わせてゲーム画面を拡大縮小する。
+  // タッチ操作の時は、セーフエリア（body の padding）と下の操作バーの分を除いた範囲に収める
+  const bar = document.getElementById('touchBar');
+  function layout() {
+    if (!input.touchUi) { renderer.resize(); return; }
+    const body = document.body;
+    body.style.height = window.innerHeight + 'px'; // スマホのアドレスバー分を含めない実際の表示高さ
+    const cs = getComputedStyle(body);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const barH = bar ? bar.offsetHeight : 0;
+    renderer.resize(window.innerWidth - padX, window.innerHeight - padY - barH);
+    if (bar) bar.style.width = canvas.style.width; // 操作バーの幅をゲーム画面に揃える
+    input.updateTouchUi(true);
+  }
+  layout();
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', () => setTimeout(layout, 300)); // 回転直後はサイズが古いことがある
 
   let last = performance.now();
   function frame(now) {
@@ -24,6 +40,7 @@
     game.update(dt);
     const t1 = performance.now();
     renderer.draw(game, stats);
+    input.updateTouchUi(false);
     const t2 = performance.now();
     stats.updateMs += (t1 - t0 - stats.updateMs) * 0.1;
     stats.drawMs += (t2 - t1 - stats.drawMs) * 0.1;

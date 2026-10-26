@@ -19,9 +19,11 @@ class Renderer {
     this.dpr = 1;
   }
 
-  resize() {
+  // maxW / maxH：ゲーム画面に使える大きさ（省略時はウィンドウ全体）。縦横比は常に維持する
+  resize(maxW, maxH) {
     const C = CONFIG;
-    const s = Math.min(window.innerWidth / C.WIDTH, window.innerHeight / C.HEIGHT);
+    const w = maxW > 0 ? maxW : window.innerWidth, h = maxH > 0 ? maxH : window.innerHeight;
+    const s = Math.min(w / C.WIDTH, h / C.HEIGHT);
     this.scale = s;
     this.dpr = window.devicePixelRatio || 1;
     this.canvas.style.width = Math.floor(C.WIDTH * s) + 'px';
@@ -56,6 +58,7 @@ class Renderer {
     this.drawPopups(g);
     ctx.restore();
     this.drawMillionaireMessage(g);
+    this.drawScoreEventTitles(g);
 
     this.drawHud(g);
     if (g.debug) this.drawDebug(g, stats);
@@ -65,10 +68,35 @@ class Renderer {
   // 花火：打ち上げ中の光の玉と、火花・炸裂の粒（加算合成で光らせ、透明度は控えめ）
   drawFireworks(g) {
     const M = g.millionaire;
-    if (M.phase !== 'rise' && g.sparks.length === 0 && M.flash <= 0) return;
+    if (M.phase !== 'rise' && g.sparks.length === 0 && M.flash <= 0 && g.shells.length === 0 && g.waves.length === 0) return;
     const ctx = this.ctx;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    // スコア到達イベントの衝撃波（ブロックより奥）
+    const WT = CONFIG.SCORE_EVENT_WAVE_TIME;
+    for (const v of g.waves) {
+      if (v.delay > 0) continue;
+      const p = v.t / WT;
+      ctx.globalAlpha = (1 - p) * 0.55;
+      ctx.strokeStyle = v.color;
+      ctx.lineWidth = 6 * (1 - p) + 1;
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 30 + p * 380, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // スコア到達イベントの打ち上げ中の花火
+    for (const s of g.shells) {
+      if (s.delay > 0) continue;
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = s.glow;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
     for (const s of g.sparks) {
       ctx.globalAlpha = Math.min(1, s.life / s.max) * 0.85;
       ctx.fillStyle = s.color;
@@ -122,6 +150,62 @@ class Renderer {
     ctx.fillStyle = '#fff4c2';
     ctx.fillText(`${CONFIG.MILLIONAIRE_SCORE.toLocaleString('en-US')} POINTS  —  +${CONFIG.MILLIONAIRE_BALLS} BALLS`, 0, 38);
     ctx.restore();
+  }
+
+  // スコア到達イベント（200万 / 500万 / 1,000万点）の称号とフラッシュ。短時間・半透明で、プレイを隠しすぎない
+  drawScoreEventTitles(g) {
+    const ctx = this.ctx;
+    const C = CONFIG;
+    const F = g.eventFlash;
+    if (F.a > 0) {
+      ctx.fillStyle = `rgba(${F.color}, ${F.a * 0.14})`;
+      ctx.fillRect(0, 0, g.W, g.H);
+    }
+    for (const ti of g.titles) {
+      if (ti.t < 0) continue;
+      const ev = ti.ev;
+      const q = ti.t / ev.time;                                   // 0→1
+      const scale = q < 0.1 ? 0.6 + (q / 0.1) * 0.5 : 1.1 - Math.min(0.1, (q - 0.1) * 0.5);
+      const alpha = Math.min(1, (ev.time - ti.t) / 0.5) * 0.92;   // 最後の0.5秒でフェードアウト
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(g.W / 2, g.H * C.SCORE_EVENT_TITLE_Y_RATIO);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // 画面幅（両端20px の余白）に収まるよう文字を縮める。スマホでも Canvas ごと縮小されるので切れない
+      let size = C.SCORE_EVENT_TITLE_SIZE;
+      ctx.font = `900 ${size}px ${FONT}`;
+      const tw = ctx.measureText(ev.title).width * 1.1;
+      if (tw > g.W - 40) size = Math.floor(size * (g.W - 40) / tw);
+      ctx.scale(scale, scale);
+      ctx.font = `900 ${size}px ${FONT}`;
+      let fill;
+      if (ev.rainbow) {
+        // 虹色が横に流れる
+        const w = ctx.measureText(ev.title).width;
+        fill = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+        const cols = ev.sparkColors;
+        const shift = (ti.t * 0.6) % 1;
+        for (let i = 0; i <= cols.length; i++) {
+          const pos = (i / cols.length + shift) % 1;
+          fill.addColorStop(pos, cols[i % cols.length]);
+        }
+      } else {
+        fill = ctx.createLinearGradient(0, -size / 2, 0, size / 2);
+        fill.addColorStop(0, ev.textColors[0]);
+        fill.addColorStop(0.5, ev.textColors[1]);
+        fill.addColorStop(1, ev.textColors[2]);
+      }
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = ev.stroke;
+      ctx.strokeText(ev.title, 0, 0);
+      ctx.fillStyle = fill;
+      ctx.fillText(ev.title, 0, 0);
+      ctx.font = `bold 15px ${FONT}`;
+      ctx.fillStyle = ev.textColors[1];
+      ctx.fillText(ev.sub, 0, size * 0.5 + 16);
+      ctx.restore();
+    }
   }
 
   drawLimitLine(g) {
@@ -565,12 +649,13 @@ class Renderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const ui = g.ui || { mode: 'cursor', locked: false, sensitivity: 1 };
-    const lockWaiting = ui.mode === 'lock' && !ui.locked;
+    const touch = !!ui.touch;                                   // スマホ（タッチ操作）向けの文言にする
+    const lockWaiting = !touch && ui.mode === 'lock' && !ui.locked;
     if (g.state === 'ready') {
       const y = g.H * 0.5;
       ctx.font = `bold 22px ${FONT}`;
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(lockWaiting ? 'クリックでマウス操作を開始' : 'クリックで発射', cx, y);
+      ctx.fillText(touch ? 'タップで発射' : lockWaiting ? 'クリックでマウス操作を開始' : 'クリックで発射', cx, y);
       if (lockWaiting) {
         ctx.font = `12px ${FONT}`;
         ctx.fillStyle = '#9aa3c7';
@@ -585,7 +670,8 @@ class Renderer {
       ctx.font = `14px ${FONT}`;
       ctx.fillStyle = '#c3c9e6';
       let msg;
-      if (lockWaiting) msg = 'クリックで再開（マウスを再ロック）';
+      if (touch) msg = 'タップ または ▶ で再開';
+      else if (lockWaiting) msg = 'クリックで再開（マウスを再ロック）';
       else if (g.pauseReason === 'user') msg = 'P / Esc / クリックで再開';
       else msg = 'クリックで再開';
       ctx.fillText(msg, cx, g.H / 2 + 14);
@@ -604,14 +690,19 @@ class Renderer {
       ctx.fillText(`破壊 ${g.destroyed}　/　最大ボール数 ${g.maxBalls}　/　侵入 ${g.intruded}`, cx, g.H / 2 + 38);
       ctx.font = `bold 16px ${FONT}`;
       ctx.fillStyle = '#6fb6ff';
-      ctx.fillText(lockWaiting ? 'クリックでリスタート（マウスを再ロック）' : 'クリック または R でリスタート', cx, g.H / 2 + 80);
+      ctx.fillText(touch ? 'タップでリスタート' : lockWaiting ? 'クリックでリスタート（マウスを再ロック）' : 'クリック または R でリスタート', cx, g.H / 2 + 80);
     }
   }
 
   // 操作方法の簡易表示
   drawControls(g, ui, y) {
     const ctx = this.ctx;
-    const lines = [
+    const lines = ui.touch ? [
+      '操作モード：タッチ',
+      '画面か下の黒い帯を左右になぞる：パドル移動',
+      'タップ：発射　SPLIT ボタン：分裂（ボール10個以下）',
+      'II：一時停止　♪：BGM',
+    ] : [
       ui.mode === 'lock'
         ? `操作モード：マウスロック（感度 ${ui.sensitivity.toFixed(1)}）`
         : '操作モード：カーソル追従',

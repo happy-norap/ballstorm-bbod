@@ -1,9 +1,13 @@
-# 引き継ぎ（最終更新：2026-10-27 00:08 / Claude Code）
+# 引き継ぎ（最終更新：2026-10-27 01:17 / Claude Code）
 
 ## 現在の状況
-**正式公開版「BALLSTORM -BBOD-」Ver.1.0**。中身は Ver.0.1.6 と同じで、開発用キーを無効化（`DEV_KEYS_ENABLED: false`）し、タブのタイトルを変更した。
+**公開版「BALLSTORM -BBOD-」Ver.1.1**。Ver.1.0（開発用キー無効化・タイトル変更・スマホ操作・OGP）に、Ver.1.1 で以下を追加：
+- スコア到達イベント（200万 DOUBLE MILLIONAIRE / 500万 MEGA MILLIONAIRE / 1,000万 OVERDRIVE LEGEND）。演出のみでゲームに影響しない。設定は `js/config.js` の `SCORE_EVENTS` 配列と `SCORE_EVENT_*`。処理は `js/game.js` の `checkScoreEvents` / `scheduleScoreEvent` / `updateScoreEvents` / `burstShell`、描画は `js/render.js` の `drawFireworks`（衝撃波・花火）と `drawScoreEventTitles`。イベントを増やす時は `SCORE_EVENTS` に1件足すだけでよい。
+- ストック超過ボーナス（ストック3個で S → +5,000点、`STOCK_OVERFLOW_BONUS`）。`collectItem` 内。
+- 得点を加算する場所を増やしても、到達イベントは update 内の共通判定で拾われる（加算箇所ごとの判定は不要）。
 - 開発・テストで開発用キー（D / 1〜4 / B / Ctrl+Shift+F8・F9）やデバッグ表示を使う時は、`js/config.js` の `DEV_KEYS_ENABLED` を一時的に true に戻し、公開前に必ず false に戻すこと。
 - JS からのテスト（`window.game` / `window.input`）は開発用キーの設定に関係なく使える。
+- スマートフォン操作対応済み：タッチ処理は `js/input.js` の `onTouchDown` / `onTouchMove` / `onTouchEnd` / `bindButton` / `updateTouchUi`、配置は `js/main.js` の `layout()`、見た目は `css/style.css` の `body.touch-ui` 以下。マウスの処理とは別経路なので、PC側を変える時もタッチ側に影響しにくい。実機（iPhone / Android）での確認がまだ。テストでは `new PointerEvent('pointerdown', {pointerType:'touch', pointerId, clientX, clientY, bubbles:true, cancelable:true})` を canvas やボタンに送ると再現できる。
 - 公開URL：https://happy-norap.github.io/ballstorm-bbod/ 。SNS共有用の OGP / Twitter カードを `index.html` に設定済み（画像 `assets/images/ogp.png` 1200×630）。URLを変える時は `index.html` の絶対URL 4か所も変更する。SNS側の表示はまだ未確認（公開後に X / Facebook のカード確認ツールで確認する）。
 
 これまでの変更：
@@ -33,7 +37,7 @@
 2. 速度上限を設けるかの判断（SPEC 未決定事項）
 2.5 ~~公開前に `js/config.js` の `DEV_KEYS_ENABLED` を false にする~~ → Ver.1.0 で対応済み
 2.6 GitHub Pages に置いた状態での動作確認（BGM の読み込み、ポインターロック）
-3. スマホ対応（タッチ操作の本実装、分裂ボタンのUI）
+3. ~~スマホ対応（タッチ操作の本実装、分裂ボタンのUI）~~ → 対応済み。残りは実機確認、横持ち時の配置、スマホでの HUD の文字の大きさ
 4. 演出強化（コンボ表示、画面フラッシュなど）
 
 ## 注意点

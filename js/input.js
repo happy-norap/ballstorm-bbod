@@ -3,8 +3,15 @@
 //   'lock'   … Pointer Lock API。クリックでマウスをロックし、movementX（相対移動量）でパドルを動かす。
 //              カーソルが画面外に出ないので、端でマウスを動かし続けても操作が途切れない。
 //   'cursor' … 従来方式。カーソル位置にパドルが追従する。
-// タッチ操作は常にカーソル追従方式で扱う（将来のスマホ対応用）。
+// タッチ操作（スマホ）：
+//   ゲーム画面か画面下の操作バーを指でなぞるとパドルがその位置に追従（ポインターロックは使わない）。
+//   ゲーム画面のタップで 発射 / 再開 / リスタート。操作バーのボタンで 一時停止・BGM・分裂。
+//   タッチ用の表示（body.touch-ui）は、タッチ主体の端末では最初から、タッチ対応PCでは最初にタッチした時に有効になる。
+//   マウス・キーボードの処理はタッチとは別経路で、従来どおり。
 'use strict';
+
+const TAP_MAX_MOVE = 12;   // これ以上指が動いたらタップではなくドラッグ（CSS px）
+const TAP_MAX_TIME = 400;  // これより長く押していたらタップではない（ミリ秒）
 
 const SETTINGS_KEY = 'endlessBreakout.settings';
 
@@ -20,8 +27,25 @@ class InputController {
     this.settings = this.loadSettings();
     this.lockSupported = 'requestPointerLock' in canvas;
     if (!this.lockSupported) this.settings.mode = 'cursor';
+    // タッチ操作の状態
+    this.touchUi = false;      // タッチ用のボタン・表示を出しているか
+    this.dragId = null;        // パドルを動かしている指の pointerId
+    this.tap = null;           // タップ判定中の指 { id, x, y, t }
+    this.touchUiCache = '';    // ボタン表示の更新を変化時だけにするため
     this.syncUi();
     this.bind();
+    try {
+      if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) this.enableTouchUi();
+    } catch (e) { /* 判定できない環境では最初のタッチで有効化 */ }
+  }
+
+  // タッチ用の表示を有効にする（一度有効にしたらそのページを開いている間は維持）
+  enableTouchUi() {
+    if (this.touchUi) return;
+    this.touchUi = true;
+    document.body.classList.add('touch-ui');
+    this.syncUi();
+    window.dispatchEvent(new Event('resize')); // 操作バーの分だけゲーム画面を縮める
   }
 
   // ---------- 設定 ----------
@@ -58,7 +82,7 @@ class InputController {
 
   // 描画側（操作説明の表示）と設定パネルに現在の状態を反映
   syncUi() {
-    this.game.ui = { mode: this.settings.mode, locked: this.locked, sensitivity: this.settings.sensitivity };
+    this.game.ui = { mode: this.settings.mode, locked: this.locked, sensitivity: this.settings.sensitivity, touch: this.touchUi && this.lastInputTouch !== false };
     this.canvas.style.cursor = this.settings.mode === 'cursor' ? 'none' : 'pointer';
     const panel = document.getElementById('settings');
     if (!panel) return;
@@ -140,12 +164,35 @@ class InputController {
     // 非ロック時：カーソル追従モード（またはタッチ）だけ絶対位置で動かす。
     // ロックモードでロックしていない時は無視するので、ロック解除後にパドルが飛ばない。
     window.addEventListener('pointermove', e => {
+      if (e.pointerType === 'touch') { this.onTouchMove(e); return; }
       if (this.locked || this.settingsOpen) return;
-      if (this.settings.mode === 'cursor' || e.pointerType === 'touch') this.game.setPointerX(this.toGameX(e.clientX));
+      if (this.settings.mode === 'cursor') this.game.setPointerX(this.toGameX(e.clientX));
     });
+    window.addEventListener('pointerup', e => this.onTouchEnd(e, true));
+    window.addEventListener('pointercancel', e => this.onTouchEnd(e, false));
 
     canvas.addEventListener('pointerdown', e => this.onPointerDown(e));
     window.addEventListener('keydown', e => this.onKeyDown(e));
+
+    // ---- タッチ用 ----
+    const bar = document.getElementById('touchBar');
+    // 操作バーの空いている所をなぞってもパドルを動かせる（指でゲーム画面を隠さずに操作できる）
+    if (bar) bar.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') this.onTouchDown(e, false); });
+    // スクロール・ダブルタップ拡大・長押しメニュー・マウス互換イベントを止める（設定パネルは対象外）
+    for (const el of [canvas, bar]) {
+      if (el) el.addEventListener('touchstart', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+    }
+    document.addEventListener('gesturestart', e => e.preventDefault()); // iOS のピンチ拡大
+    document.addEventListener('dblclick', e => e.preventDefault());
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    this.bindButton('btnSplit', () => this.game.activateSplit());
+    this.bindButton('btnPause', () => {
+      const g = this.game;
+      if (this.settingsOpen) return;
+      if (g.state === 'playing') g.pause('user');
+      else if (g.state === 'paused') g.resume();
+    });
+    this.bindButton('btnBgm', () => this.audio.toggleBgm());
 
     // タブが裏に回ったら一時停止
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.game.pause('hidden'); });
@@ -179,14 +226,99 @@ class InputController {
     return ((clientY - rect.top) / rect.height) * CONFIG.HEIGHT;
   }
 
+  // ---------- タッチ ----------
+  // onCanvas：ゲーム画面で触れたか（false は操作バーの空き部分）
+  onTouchDown(e, onCanvas) {
+    const g = this.game;
+    if (this.lastInputTouch === false) { this.lastInputTouch = true; this.syncUi(); } // 案内文をタッチ用に戻す
+    this.enableTouchUi();
+    this.audio.unlock();
+    if (e.cancelable) e.preventDefault();
+    if (this.settingsOpen) { this.closeSettings(); return; }
+    const gx = this.toGameX(e.clientX);
+    // 従来からある操作：HUD の分裂ストック部分のタップで分裂（パドルは動かさない）
+    if (onCanvas && this.toGameY(e.clientY) < CONFIG.HUD_HEIGHT && gx > 350 && gx < 460) { g.activateSplit(); return; }
+    if (this.dragId === null) { this.dragId = e.pointerId; g.setPointerX(gx); }
+    if (onCanvas) this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+  }
+
+  onTouchMove(e) {
+    if (this.tap && this.tap.id === e.pointerId &&
+        Math.hypot(e.clientX - this.tap.x, e.clientY - this.tap.y) > TAP_MAX_MOVE) this.tap = null;
+    if (e.pointerId !== this.dragId || this.settingsOpen) return;
+    this.game.setPointerX(this.toGameX(e.clientX)); // 指を離しても最後の位置に留まる
+  }
+
+  onTouchEnd(e, isUp) {
+    if (e.pointerType !== 'touch') return;
+    if (e.pointerId === this.dragId) this.dragId = null;
+    const tap = this.tap;
+    if (!tap || tap.id !== e.pointerId) return;
+    this.tap = null;
+    if (!isUp || performance.now() - tap.t > TAP_MAX_TIME || this.settingsOpen) return;
+    // タップ：発射 / リスタート / 再開（プレイ中のタップは何もしない）
+    const g = this.game;
+    if (g.state === 'ready') g.launch();
+    else if (g.state === 'gameover') g.reset();
+    else if (g.state === 'paused') g.resume();
+  }
+
+  // 操作バーのボタン：押した瞬間に1回だけ実行（長押しでも連続しない）。パドル移動・タップ判定には渡さない
+  bindButton(id, fn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.pointerType === 'touch') this.enableTouchUi();
+      this.audio.unlock();
+      fn();
+      this.updateTouchUi(true);
+    });
+    el.addEventListener('click', e => e.preventDefault());
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  }
+
+  // 毎フレーム呼ぶ：ボタンの表示（使用可否・ストック数・一時停止/再開・BGM）を状態に合わせる
+  updateTouchUi(force) {
+    if (!this.touchUi) return;
+    const g = this.game;
+    const canSplit = g.state === 'playing' && g.canSplit;
+    const pausable = g.state === 'playing' || g.state === 'paused';
+    const key = `${canSplit}|${g.splitStock}|${g.state}|${pausable}|${this.audio.bgmOn}`;
+    if (!force && key === this.touchUiCache) return;
+    this.touchUiCache = key;
+    const split = document.getElementById('btnSplit');
+    if (split) {
+      split.textContent = `SPLIT ×${g.splitStock}`;
+      split.classList.toggle('disabled', !canSplit);
+      split.setAttribute('aria-disabled', String(!canSplit));
+    }
+    const pause = document.getElementById('btnPause');
+    if (pause) {
+      pause.textContent = g.state === 'paused' ? '▶' : 'II';
+      pause.setAttribute('aria-label', g.state === 'paused' ? '再開' : '一時停止');
+      pause.classList.toggle('disabled', !pausable);
+    }
+    const bgm = document.getElementById('btnBgm');
+    if (bgm) {
+      bgm.textContent = this.audio.bgmOn ? '♪ ON' : '♪ OFF';
+      bgm.classList.toggle('off', !this.audio.bgmOn);
+    }
+  }
+
   onPointerDown(e) {
     const g = this.game;
+    if (e.pointerType === 'touch') { this.onTouchDown(e, true); return; }
+    // タッチ対応PCでマウスに持ち替えた時は、画面の案内文をマウス用に戻す（ボタン表示はそのまま）
+    if (this.touchUi && this.lastInputTouch !== false) { this.lastInputTouch = false; this.syncUi(); }
     this.audio.unlock();
     if (this.settingsOpen) { this.closeSettings(); return; }
-    const touch = e.pointerType === 'touch';
+    // 以下はマウス・ペン（タッチは onTouchDown で処理する）
 
     // ロックモードで未ロック：このクリックはロック開始専用（発射はしない）
-    if (this.settings.mode === 'lock' && !this.locked && !touch) {
+    if (this.settings.mode === 'lock' && !this.locked) {
       this.requestLock();
       if (g.state === 'gameover') g.reset(); // リスタートは発射ではないので同時に行う
       return;

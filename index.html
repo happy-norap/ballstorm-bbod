@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>BALLSTORM -BBOD- | 増殖・分裂ボールで壊しまくるエンドレス・ブロック崩し</title>
   <meta name="description" content="ボールを増殖・分裂させ、降り続くブロックを一気に壊すエンドレス型ブロック崩し。ブラウザですぐ遊べる無料ゲーム。マウスで操作。">
   <link rel="canonical" href="https://happy-norap.github.io/ballstorm-bbod/">
@@ -29,6 +29,13 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+
+  <!-- スマホ用の操作バー（タッチ操作の時だけ表示。空いている所をなぞってもパドルが動く） -->
+  <div id="touchBar">
+    <button id="btnPause" class="tbtn" type="button" tabindex="-1" aria-label="一時停止">II</button>
+    <button id="btnBgm" class="tbtn" type="button" tabindex="-1" aria-label="BGM の切り替え">♪ ON</button>
+    <button id="btnSplit" class="tbtn split disabled" type="button" tabindex="-1" aria-label="分裂（ストック使用）">SPLIT ×0</button>
+  </div>
 
   <button id="settingsButton" type="button" title="設定（O キー）" aria-label="設定">⚙</button>
   <div id="settings" hidden>
