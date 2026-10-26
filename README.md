@@ -65,6 +65,7 @@ js/audio.js         効果音（WebAudio合成）と BGM
 js/input.js         入力処理（マウスロック / カーソル追従 / キー操作 / 設定パネル）
 js/main.js          起動・メインループ
 assets/bgm/         BGM（bgm_main.mp3 = "Neutral Vectors"、作者本人の楽曲）
+assets/images/      ogp.png（SNS共有用画像 1200×630。元画像はルートの「ネオンアーケード「ボールストーム」.png」）
 tools/serve.ps1     開発用の簡易HTTPサーバー
 docs/SPEC.md        仕様・決定事項・未決定事項
 docs/WORKLOG.md     作業履歴

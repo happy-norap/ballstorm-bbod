@@ -107,7 +107,13 @@ Ver.1.0 は Ver.0.1.6 時点のゲーム内容（バランス・演出・操作�
 
 ### 開発用キーの無効化（Ver.0.1.5 で追加）
 - `DEV_KEYS_ENABLED` を false にすると、開発用キー（D / 1〜4 / B / Ctrl+Shift+F8・F9）がすべて無効になり、デバッグ表示も出なくなる。**Ver.1.0（公開版）では false**。開発時は true に戻して使う。
-- タイトル（ブラウザのタブ表記）は「BALLSTORM -BBOD-」（Ver.1.0）。ゲーム画面内にはタイトル表示なし。
+- タイトル（ブラウザのタブ表記）は「BALLSTORM -BBOD- | 増殖・分裂ボールで壊しまくるエンドレス・ブロック崩し」（Ver.1.0、OGP対応時に説明を追加）。ゲーム画面内にはタイトル表示なし。
+
+### SNS共有（OGP、Ver.1.0）
+- 公開URL：https://happy-norap.github.io/ballstorm-bbod/ （`og:url` と `canonical`）
+- 画像：`assets/images/ogp.png`（1200×630、PNG）。`og:image` / `twitter:image` は絶対URL。元画像（1672×941）を横1200に縮小し、上20px・下約25pxの端のブロックだけを切って 1.91:1 にした（ロゴ・「BBOD」・パドルは切れていない）。
+- `twitter:card` は `summary_large_image`。タイトルは「BALLSTORM -BBOD-」、説明文は `index.html` の `description` / `og:description` / `twitter:description`。
+- 公開URLが変わったら `index.html` の絶対URL（4か所：canonical、og:url、og:image、twitter:image）を書き換える。
 
 ### 侵入ペナルティ
 - 画面下部に侵入限界ライン（赤い点線）。ブロックがラインを越えたら消滅し減点。

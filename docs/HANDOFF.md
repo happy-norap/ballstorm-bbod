@@ -4,6 +4,7 @@
 **正式公開版「BALLSTORM -BBOD-」Ver.1.0**。中身は Ver.0.1.6 と同じで、開発用キーを無効化（`DEV_KEYS_ENABLED: false`）し、タブのタイトルを変更した。
 - 開発・テストで開発用キー（D / 1〜4 / B / Ctrl+Shift+F8・F9）やデバッグ表示を使う時は、`js/config.js` の `DEV_KEYS_ENABLED` を一時的に true に戻し、公開前に必ず false に戻すこと。
 - JS からのテスト（`window.game` / `window.input`）は開発用キーの設定に関係なく使える。
+- 公開URL：https://happy-norap.github.io/ballstorm-bbod/ 。SNS共有用の OGP / Twitter カードを `index.html` に設定済み（画像 `assets/images/ogp.png` 1200×630）。URLを変える時は `index.html` の絶対URL 4か所も変更する。SNS側の表示はまだ未確認（公開後に X / Facebook のカード確認ツールで確認する）。
 
 これまでの変更：
 - 難易度・得点バランス調整（Ver.0.1.6）：分裂はボール10個以下の時だけ、ボール上限119（`addBall` が上限で null を返す）、P/G の出現比率をボール数で下げる、装甲ブロック（耐久5・1,000点・`BLOCK.ARMOR`）、時間倍率（60秒ごと×1.1、上限10倍、`scoreMult`）。調整値は `BALL_LIMIT` / `SPLIT_MAX_BALLS` / `ITEM_PG_RATE_BANDS` / `ARMOR_*` / `SCORE_ARMOR` / `SCORE_MULT_*`。自動操作の推定で100万点まで約3〜8分。

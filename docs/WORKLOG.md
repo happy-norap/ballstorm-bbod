@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-10-27 00:42 / Claude Code (Opus 5.5)
+
+### 内容
+SNS共有用の OGP / Twitter カード設定（ユーザー依頼）。ゲーム本体（js / css）は変更なし。
+
+### 変更ファイル
+- `assets/images/ogp.png`（新規）：アイキャッチ画像「ネオンアーケード「ボールストーム」.png」（1672×941）から作成した 1200×630 の PNG（約2.0MB）。横1200に縮小（高さ約675）し、上20px・下約25pxの端のブロックだけを切った。ロゴ・「BLOCK BURST OVERDRIVE」・「BBOD」・パドルは切れていない
+- `index.html`：head に description、canonical、og:type / site_name / title / description / url / image（+ type・width・height・alt）/ locale、twitter:card（summary_large_image）/ title / description / image / image:alt を追加。ページタイトルに短い説明を追加
+- `README.md`（ファイル構成に assets/images）、`docs/SPEC.md`、`docs/HANDOFF.md`、`docs/WORKLOG.md`
+
+### 変更理由
+X や Facebook に公開URLを貼った時に、画像・タイトル・説明文のカードが出るようにするため。
+
+### 確認結果（http://localhost:8765/ で確認）
+- 全メタタグが head に入っていることを DOM から確認。og:url / og:image / twitter:image / canonical は https://happy-norap.github.io/ballstorm-bbod/ 起点の絶対URL
+- `assets/images/ogp.png` が 200・image/png・1200×630 で配信されることを確認。画像を目視し、文字と重要部分が切れていないことを確認
+- ゲームは従来どおり起動（発射待ち、`DEV_KEYS_ENABLED` false）、コンソールエラーなし
+
+### 未解決問題
+- 実際の X / Facebook でのカード表示は、GitHub へアップロード後でないと確認できない（未確認）。
+- 画像が約2.0MB と大きめ（X の上限5MB・Facebook の上限8MB 以内）。表示が遅い場合は JPEG 化を検討。
+
+---
+
 ## 2026-10-27 00:08 / Claude Code (Opus 5.5)
 
 ### 内容
